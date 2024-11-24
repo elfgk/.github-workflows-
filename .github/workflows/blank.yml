@@ -1,33 +1,42 @@
-name: Kaggle Sync
+name: Sync Kaggle Notebooks to GitHub
 
 on:
+  schedule:
+    # Belirli aralıklarla çalışacak şekilde zamanlanmış görev
+    - cron: '0 0 * * *'  # Her gün gece yarısı çalışır
+  workflow_dispatch:
+    # Manuel olarak çalıştırılabilir
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # main branch'inde push yapıldığında tetiklenir
 
 jobs:
-  sync-kaggle:
+  sync_notebooks:
     runs-on: ubuntu-latest
 
     steps:
-      # Repository'yi checkout yapıyoruz
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v2
 
-      # Kaggle API key'i environment variable olarak ekliyoruz
-      - name: Set up Kaggle API key
+      - name: Set up Kaggle API Key
         run: |
-          mkdir -p ~/.kaggle
-          echo "${{ secrets.KAGGLE_JSON }}" > ~/.kaggle/kaggle.json
+          echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/kaggle.json
           chmod 600 ~/.kaggle/kaggle.json
 
-      # Kaggle veri setini indiriyoruz
-      - name: Download dataset from Kaggle
+      - name: Install dependencies
         run: |
-          kaggle datasets download -d <DATASET_NAME>  # Burada veri setinin ismini yazmalısın
+          pip install kaggle  # Kaggle API'sini yükleyin
+          pip install gitpython  # Git işlemleri için gitpython
+
+      - name: Sync Kaggle notebooks
+        run: |
+          mkdir -p notebooks  # Notebooks dizini oluşturuluyor
+          kaggle kernels pull -u  # Tüm kullanıcı kernel'larını indir
           
-      # Alternatif olarak, dataset'i bir zip dosyası olarak indirebilirsin
-      - name: Unzip Kaggle dataset
-        run: |
-          unzip <DATASET_NAME>.zip -d ./dataset
+          # Git işlemleri
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          git add ./notebooks
+          git commit -m "Sync Kaggle notebooks"
+          git push origin main  # GitHub'a yükleme
