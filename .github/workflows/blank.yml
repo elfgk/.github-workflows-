@@ -2,10 +2,9 @@ name: Sync Kaggle Notebooks to GitHub
 
 on:
   schedule:
-    # Belirli aralıklarla çalışacak şekilde zamanlanmış görev
-    - cron: '0 0 * * *'  # Her gün gece yarısı çalışır
-  workflow_dispatch:
-    # Manuel olarak çalıştırılabilir
+    # Her gün gece 12'de çalışacak şekilde ayarlanmış cron job
+    - cron: '0 0 * * *'  
+  workflow_dispatch:  # Manuel olarak da çalıştırılabilir
   push:
     branches:
       - main  # main branch'inde push yapıldığında tetiklenir
@@ -16,27 +15,28 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2  # GitHub repository'sine erişim sağlama
 
       - name: Set up Kaggle API Key
         run: |
-          echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
+          mkdir -p ~/.kaggle  # .kaggle dizini oluşturuluyor
+          echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/kaggle.json  # Kaggle API anahtarı ekleniyor
+          chmod 600 ~/.kaggle/kaggle.json  # Anahtarın erişim izinlerini ayarlama
 
       - name: Install dependencies
         run: |
-          pip install kaggle  # Kaggle API'sini yükleyin
-          pip install gitpython  # Git işlemleri için gitpython
+          pip install kaggle  # Kaggle API'si kuruluyor
+          pip install gitpython  # Git işlemleri için gitpython kütüphanesi
 
       - name: Sync Kaggle notebooks
         run: |
-          mkdir -p notebooks  # Notebooks dizini oluşturuluyor
-          kaggle kernels pull -u  # Tüm kullanıcı kernel'larını indir
+          mkdir -p notebooks  # Notebooks klasörü oluşturuluyor
+          kaggle kernels pull -u  # Kullanıcıya ait tüm kernel'lar indiriliyor
           
           # Git işlemleri
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"  # Git kullanıcı adı ayarlama
+          git config --global user.email "actions@github.com"  # Git e-posta adresi ayarlama
           
-          git add ./notebooks
-          git commit -m "Sync Kaggle notebooks"
-          git push origin main  # GitHub'a yükleme
+          git add ./notebooks  # Notebooks klasöründeki dosyaları git'e ekleme
+          git commit -m "Sync Kaggle notebooks"  # Commit mesajı
+          git push origin main  # GitHub'a push işlemi
