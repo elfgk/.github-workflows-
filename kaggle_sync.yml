@@ -1,35 +1,40 @@
-name: Sync Kaggle Notebooks
+name: Kaggle Sync
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Her gün gece yarısı çalışır
-  workflow_dispatch:  # Manuel olarak da başlatılabilir
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  sync_kaggle:
+  sync-notebooks:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Depoyu klonla
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Kaggle API Anahtarını Yapılandır
+      # Kaggle API kimlik bilgilerini ayarla
+      - name: Set up Kaggle credentials
         run: |
           mkdir -p ~/.kaggle
-          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
-          chmod 600 ~/.kaggle/kaggle.json
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
 
-      - name: Kaggle Notebookları Çek
+      # Kullanıcıya ait tüm notebook'ları listele ve indir
+      - name: Download all notebooks from Kaggle
         run: |
-          mkdir -p kaggle_notebooks
-          kaggle kernels list --mine --csv | awk -F ',' '{if (NR!=1) print $1}' | while read -r kernel; do
-            kaggle kernels pull $kernel -p kaggle_notebooks
+          mkdir -p notebooks
+          # Kullanıcı adına ait tüm kernel'ları listele
+          kernels=$(kaggle kernels list --user ${{ secrets.KAGGLE_USERNAME }} --format json)
+          
+          # JSON formatındaki kernel listesinden her bir kernel'ı indir
+          for kernel in $(echo "$kernels" | jq -r '.[].id'); do
+            kaggle kernels pull -k "$kernel" -p ./notebooks
           done
 
-      - name: Güncellemeleri GitHub'a Gönder
+      # Değişiklikleri commit et ve pushla
+      - name: Commit and push changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add kaggle_notebooks/
-          git commit -m "Sync Kaggle notebooks [skip ci]" || echo "No changes to commit"
-          git push
+          git add notebooks/*
+          git commit -m "Update notebooks"
+          git push origin main
