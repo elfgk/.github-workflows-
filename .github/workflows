@@ -1,3 +1,8 @@
+- name: Install jq
+  run: sudo apt-get install -y jq
+
+
+
 name: Kaggle Sync
 
 on:
