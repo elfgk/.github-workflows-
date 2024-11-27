@@ -1,0 +1,44 @@
+name: Kaggle Sync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync-notebooks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install jq (JSON işlemleri için gerekli)
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      # Kaggle API kimlik bilgilerini ayarla
+      - name: Set up Kaggle credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USER }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+
+      # Kullanıcıya ait tüm notebook'ları listele ve indir
+      - name: Download all notebooks from Kaggle
+        run: |
+          mkdir -p notebooks
+          # Kullanıcı adına ait tüm kernel'ları listele
+          kernels=$(kaggle kernels list --user ${{ secrets.KAGGLE_USER }} --format json)
+          
+          # JSON formatındaki kernel listesinden her bir kernel'ı indir
+          for kernel in $(echo "$kernels" | jq -r '.[].id'); do
+            kaggle kernels pull -k "$kernel" -p ./notebooks
+          done
+
+      # Değişiklikleri commit et ve pushla
+      - name: Commit and push changes
+        run: |
+          git add notebooks/*
+          git commit -m "Update notebooks"
+          git push origin main
