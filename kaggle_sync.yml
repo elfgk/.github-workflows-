@@ -1,0 +1,35 @@
+name: Sync Kaggle Notebooks
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Her gün gece yarısı çalışır
+  workflow_dispatch:  # Manuel olarak da başlatılabilir
+
+jobs:
+  sync_kaggle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Depoyu klonla
+        uses: actions/checkout@v3
+
+      - name: Kaggle API Anahtarını Yapılandır
+        run: |
+          mkdir -p ~/.kaggle
+          echo "{\"username\":\"${{ secrets.KAGGLE_USERNAME }}\",\"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Kaggle Notebookları Çek
+        run: |
+          mkdir -p kaggle_notebooks
+          kaggle kernels list --mine --csv | awk -F ',' '{if (NR!=1) print $1}' | while read -r kernel; do
+            kaggle kernels pull $kernel -p kaggle_notebooks
+          done
+
+      - name: Güncellemeleri GitHub'a Gönder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kaggle_notebooks/
+          git commit -m "Sync Kaggle notebooks [skip ci]" || echo "No changes to commit"
+          git push
