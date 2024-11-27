@@ -1,0 +1,41 @@
+-name: Kaggle Sync
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  sync-kaggle-notebooks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Kaggle API Key and User
+      run: |
+        # API anahtarını ve kullanıcıyı kaydediyoruz
+        mkdir -p ~/.kaggle
+        echo "{\"username\":\"${{ secrets.KAGGLE_USER }}\", \"key\":\"${{ secrets.KAGGLE_KEY }}\"}" > ~/.kaggle/kaggle.json
+        chmod 600 ~/.kaggle/kaggle.json
+
+    # Kaggle kullanıcı adını doğrulama (isteğe bağlı)
+    - name: Verify Kaggle User
+      run: echo "Using Kaggle user: ${{ secrets.KAGGLE_USER }}"
+
+    - name: Download Kaggle Notebooks
+      run: |
+        mkdir -p notebooks
+        kaggle kernels list -m --mine --csv | awk -F',' '{if(NR>1) print $1}' > kernels_list.txt
+        while IFS= read -r kernel; do
+          kaggle kernels pull "${kernel}" -p notebooks
+        done < kernels_list.txt
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add notebooks/*
+        git commit -m "Update notebooks from Kaggle"
+        git push
